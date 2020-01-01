@@ -1,0 +1,94 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+#### importing dataset
+
+df_fashion_train=pd.read_csv("fashion-mnist_train.csv")
+df_fashion_test=pd.read_csv("fashion-mnist_test.csv")
+
+#### making an array of training and test
+
+training=np.array(df_fashion_train,dtype="float32")
+test=np.array(df_fashion_test,dtype="float32")
+
+
+#### visulaise data
+
+import random
+i=random.randint(1,60000)
+plt.imshow(training[i,1:].reshape(28,28))
+label=training[i,0]
+label
+
+
+###Training and Testing data
+X_train=training[:,1:]/255
+y_train=training[:,0]
+X_test=test[:,1:]/255
+y_test=test[:,0]
+
+
+from sklearn.model_selection import train_test_split
+X_train,X_validate,y_train,y_validate=train_test_split(X_train,y_train,test_size=0.2,random_state=12345)
+
+#### Reshape our data in (28,28,1) format to feed to convolutional model
+
+X_train=X_train.reshape(X_train.shape[0],*(28,28,1))
+X_test=X_test.reshape(X_test.shape[0],*(28,28,1))
+X_validate=X_validate.reshape(X_validate.shape[0],*(28,28,1))
+
+
+### Making model
+
+import keras
+from keras.models import Sequential
+from keras.layers import Conv2D,MaxPooling2D,Dense,Flatten,Dropout
+from keras.optimizers import Adam
+from keras.callbacks import TensorBoard
+
+cnn_model=Sequential()
+cnn_model.add(Conv2D(128,3,3,input_shape=(28,28,1),activation="relu"))
+cnn_model.add(MaxPooling2D(pool_size=(2,2)))
+cnn_model.add(Flatten())
+
+
+## hidden layer
+cnn_model.add(Dense(output_dim=32,activation="relu"))
+## output layer
+cnn_model.add(Dense(output_dim=10,activation="sigmoid"))
+
+cnn_model.compile(loss="sparse_categorical_crossentropy",optimizer=Adam(lr=0.001),metrics=["accuracy"])
+
+epochs=50
+cnn_model.fit(X_train,y_train,nb_epoch=epochs,batch_size=512,verobose=1,validation_data=(X_validate,y_validate))
+
+#### evaluate our model on test 
+evaluation=cnn_model.evaluate(X_test,y_test)
+print("test accuracy: {:.3f}".format(evaluation[1]))
+
+#### make prediction class
+predicted_class=cnn_model.predict_classes(X_test)
+
+
+### check the results of predicted class and true class
+L=5
+W=5
+fig,axes=plt.subplot(L,W,figsize=(12,12))
+axes=axes.ravel()
+
+
+for i in np.arange(0,L*W):
+    axes[i].imshow(X_test[i].reshape(28,28))
+    axes[i].set_title("predition class : {:0.1f}\n True calss: {:0.1f}".format(predicted_class[i],y_test[i]))
+    axes[i].axis("off")
+plt.subplots_adjust(wspace=0.5)
+
+
+#### Making confusion matrix
+from sklearn.metrics import confusion_matrix
+cm=confusion_matrix(y_test,predicted_class)
+
+
